@@ -216,6 +216,30 @@ class TelosB():
         data_acknowledge = self.serial.read()
         assert(data_acknowledge == b'\x90')
 
+def checksum(data):
+    """Return the 16-bit (2-byte) checksum is calculated over all received or
+    transmitted bytes B1 to Bn in the data frame, except the checksum bytes
+    themselves, by XORing words (two successive bytes) and inverting the
+    result.
+    """
+    checksum_high = ~xor(data[0::2]) & 0xFF
+    checksum_low = ~xor(data[1::2]) & 0xFF
+    return checksum_high, checksum_low
+
+def xor(data):
+    """Return the XOR of successive elements ."""
+    xor_sum = 0
+    for element in data:
+        xor_sum ^= element
+
+    # See https://docs.python.org/3/library/stdtypes.html#bytes-objects if you
+    # need a friendly reminder on how byte objects behave.
+    return xor_sum
+
+def hexstr_to_bytes(value):
+    """Return bytes object and filter out formatting characters from a string of hexadecimal numbers."""
+    return bytes.fromhex(''.join(filter(str.isalnum, value)))
+
 
 if __name__ == '__main__':
     telos = TelosB('/dev/ttyUSB0')
