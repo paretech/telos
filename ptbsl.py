@@ -23,6 +23,7 @@ class Driver():
         self.name = name
 
 
+# @TODO: Context manager? Start switch serial, do something, stop switch serial.
 class ADG715():
     scl = Driver('serial', 'rts')
     sda = Driver('serial', 'dtr')
@@ -171,7 +172,7 @@ class TelosB():
         self.bsl_start()
         self.bsl_sync()
 
-
+    # @TODO: Context manager? Start switch serial, do something, stop switch serial.
     def bsl_start(self):
         # The TelosB ADG715 digital switch is controlled via an I2C compatible
         # serial bus.
@@ -197,19 +198,22 @@ class TelosB():
         # established by the master. 
         self.switch.serial_stop()
 
+        # If control over the MCU UART protocol is lost, either by line faults or
+        # by violating the data frame conventions, the only way to recover is
+        # to rerun the BSL entry sequence to initiate another BSL session.
+
     def bsl_sync(self):
-        # Before sending any command to the MCU's BSL, a synchronization character
-        # (SYNC) with its value of 0x80 must be sent to the BSL. This character
-        # is necessary to calculate all the essential internal parameters,
-        # which maintain UART and flash memory program and erase timings. It
-        # provides the BSL system time reference. When this is received, an
-        # acknowledge 0x90 is sent back by the BSL to confirm
-        # successful reception. A bsl_sync() must be performed before every
-        # command that is sent to the BSL.
+        # A bsl_sync() must be performed at BSL start and before every command
+        # that is sent to the BSL. The synchronization character (SYNC) is
+        # 0x80. The SYNC provides the BSL system time reference and is used by
+        # the MCU to calculate internal parameters used to maintain UART and
+        # flash memory program and erase timings.
         self.serial.write(b'\x80')
+        
+        # Synx 0x80 is successfully received, an acknowledge 0x90 is sent back
+        # by the BSL.
         self.serial.flushInput()
         data_acknowledge = self.serial.read()
-
         assert(data_acknowledge == b'\x90')
 
 
