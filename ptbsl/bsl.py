@@ -171,6 +171,8 @@ class TelosB():
 
         self.bsl_start()
         self.bsl_sync()
+        # self.bsl_sync()
+        # self.erase()
 
     # @TODO: Context manager? Start switch serial, do something, stop switch serial.
     def bsl_start(self):
@@ -216,6 +218,55 @@ class TelosB():
         data_acknowledge = self.serial.read()
         assert(data_acknowledge == b'\x90')
 
+    def version(self):
+        data_frame = hexstr_to_bytes('80 1E 04 04 00 00 00 00')
+        print(append_checksum(data_frame))
+        # self.bsl_sync()
+        self.serial.write(append_checksum(data_frame))
+
+        # self.serial.flushInput()
+        response = self.serial.read(16)
+
+        print(response)
+
+    def test(self):
+        data_frame = hexstr_to_bytes('80 14 04 04 00 0F 0E 00 75 E0')
+        print(append_checksum(data_frame))
+        # self.bsl_sync()
+        self.serial.write(append_checksum(data_frame))
+
+        # self.serial.flushInput()
+        response = self.serial.read(16)
+
+        print(response)
+
+    def password(self):
+        data_frame = hexstr_to_bytes('80 10 24 24 E0 FF 20 00') + (32 * b'\xFF')
+        print(bytes_to_hexstr(append_checksum(data_frame)))
+        # self.serial.flushInput()
+        self.serial.write(append_checksum(data_frame))
+
+        response = self.serial.read(16)
+
+        print(response)
+
+    def erase(self):
+        data_frame = hexstr_to_bytes('80 18 04 04 00 FF 06 A5')
+        self.serial.write(append_checksum(data_frame))
+
+        # self.serial.flushInput()
+        response = self.serial.read(16)
+
+        print(response)
+
+def append_checksum(data):
+    print(bytes_to_hexstr(data))
+    # WARNING, SWITCH THE BYTES... Appears to be an issue here...
+    CKL, CKH = checksum(data)
+
+    print(bytes_to_hexstr(data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')))
+    return data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')
+
 def checksum(data):
     """Return the 16-bit (2-byte) checksum is calculated over all received or
     transmitted bytes B1 to Bn in the data frame, except the checksum bytes
@@ -236,10 +287,21 @@ def xor(data):
     # need a friendly reminder on how byte objects behave.
     return xor_sum
 
+def goodfet_checksum(data):
+    """Calculates a checksum of "data"."""
+    checksum = 0
+    length = len(data)
+    for i in range(length/2):
+        checksum = checksum ^ ((data[i*2]) | ((data[i*2+1]) << 8))    #xor-ing
+    return 0xffff & (checksum ^ 0xffff)         #inverting
+
 def hexstr_to_bytes(value):
     """Return bytes object and filter out formatting characters from a string of hexadecimal numbers."""
     return bytes.fromhex(''.join(filter(str.isalnum, value)))
 
+def bytes_to_hexstr(value, start='', sep=' '):
+    """Return string of hexadecimal numbers separated by spaces from a bytes object."""
+    return start + sep.join(["{:02X}".format(byte) for byte in bytes(value)])
 
 if __name__ == '__main__':
     telos = TelosB('/dev/ttyUSB0')
