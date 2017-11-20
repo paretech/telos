@@ -1,6 +1,16 @@
 import serial
 import time
 
+SYNC = b'\x80'
+
+# If the data frame has been received correctly and the command execution was
+# successful, an acknowledge character DATA_ACK = 90h is sent back by the BSL.
+DATA_ACK = b'\x90'
+
+# Incorrectly received data frames, unsuccessful operations, and commands that
+# are locked or not defined are confirmed with a DATA_NAK = A0h.
+DATA_NAK = b'\xA0'
+
 class Driver():
     # David Beazley style... https://www.youtube.com/watch?v=5nXmq1PsoJ0
     def __init__(self, device, pin, invert=False):
@@ -170,9 +180,6 @@ class TelosB():
         self.switch = ADG715(self.serial)
 
         self.bsl_start()
-        self.bsl_sync()
-        # self.bsl_sync()
-        # self.erase()
 
     # @TODO: Context manager? Start switch serial, do something, stop switch serial.
     def bsl_start(self):
@@ -205,29 +212,190 @@ class TelosB():
         # to rerun the BSL entry sequence to initiate another BSL session.
 
     def bsl_sync(self):
-        # A bsl_sync() must be performed at BSL start and before every command
-        # that is sent to the BSL. The synchronization character (SYNC) is
-        # 0x80. The SYNC provides the BSL system time reference and is used by
-        # the MCU to calculate internal parameters used to maintain UART and
-        # flash memory program and erase timings.
-        self.serial.write(b'\x80')
+        """ Synchronize BSL internal parameters.
+
+        A bsl_sync() must be performed at BSL start and before every command
+        that is sent to the BSL. The synchronization character (SYNC) is 0x80.
+        The SYNC provides the BSL system time reference and is used by the MCU
+        to calculate internal parameters used to maintain UART and flash
+        memory program and erase timings.
         
-        # Synx 0x80 is successfully received, an acknowledge 0x90 is sent back
-        # by the BSL.
+        Synx 0x80 is successfully received, an acknowledge 0x90 is sent back
+        by the BSL.
+        """
+
+        self.serial.write(SYNC)
+
         self.serial.flushInput()
         data_acknowledge = self.serial.read()
-        assert(data_acknowledge == b'\x90')
+        assert(data_acknowledge == DATA_ACK)
 
-    def version(self):
-        data_frame = hexstr_to_bytes('80 1E 04 04 00 00 00 00')
-        print(append_checksum(data_frame))
-        # self.bsl_sync()
+    def bsl_rx_data_block(self, address, data):
+        """ Write data to the BSL target device.
+
+        The receive data block command is used for any write access to the
+        flash memory, RAM, or peripheral module control registers at 0000h
+        to 01FFh. It is password protected.
+        """
+
+        # @TODO: Incomplete implementation
+        raise NotImplementedError
+
+        assert(length%2 != 1)
+        assert(int(address) < 255)
+
+    def bsl_rx_password(self, password=(32 * b'\xFF')):
+        """ Unlock the password-protected BSL commands.
+
+        The receive password command is used to unlock the password-protected
+        commands, which perform reading, writing, or segment-erasing memory
+        access. The unlock password command is not itself password protected.
+
+        Neither start address nor block length information is necessary,
+        because the 32-byte password is always located at addresses FFE0h to
+        FFFFh.
+
+        Data bytes D1 to D20h hold the password information starting with D1
+        at address FFE0h.
+
+        If the receipt and verification of the password is correct, a positive
+        acknowledge DATA_ACK is sent back by the BSL, and the password-
+        protected commands become unlocked. Otherwise the BSL confirms with a
+        DATA_NAK.
+
+        NOTE: Mass erase initializes the password area to 32 times 0FFh.
+        """
+        assert(len(password) == 32) 
+        data_frame = hexstr_to_bytes('80 10 24 24 00 00 00 00') + password
         self.serial.write(append_checksum(data_frame))
 
-        # self.serial.flushInput()
-        response = self.serial.read(16)
+        self.serial.flushInput()
+        response = self.serial.read(1)
+        assert(response != DATA_NAK)
+        assert(response == DATA_ACK)
 
-        print(response)
+    def bsl_mass_erase(self):
+        """ Erase the entire flash memory area.
+
+        The mass erase command erases the entire flash memory area (main
+        memory plus information memory). The mass erase command is not
+        password protected. 
+
+        After erasing, an acknowledge character DATA_ACK
+        is sent back by the BSL. 
+
+        Mass erase initializes the password area to 32 times 0FFh. 
+
+        NOTE: BSL versions V2.01 and higher support automatic clearing of the
+        LOCKA bit protecting information flash memory. When the BSL is entered
+        from a reset condition, LOCKA is cleared by the BSL to mass erase the
+        flash, including information memory. When the BSL is entered in-
+        application, user software should ensure that LOCKA is written as 1
+        prior to initiating the BSL. Otherwise, information flash is not
+        erased during a BSL mass erase.
+        """
+
+        data_frame = append_checksum(hexstr_to_bytes('80 18 04 04 00 FF 06 A5'))
+        self.serial.write()
+
+        self.serial.flushInput()
+        response = self.serial.read(1)
+        assert(response != DATA_NAK)
+        assert(response == DATA_ACK)
+
+    def bsl_erase_segment(self):
+        """ Erases specific flash memory segments.
+
+        See section 2.4.4.5 of SLAU319 (Rev. O)
+        """
+        raise NotImplementedError
+
+    def bsl_erase_main(self):
+        """ Erases specific flash memory sections..
+
+        See section 2.4.4.6 of SLAU319 (Rev. O)
+        """
+        raise NotImplementedError
+
+    def bsl_erase_check(self):
+        """ Verify erasure of flash memory within a certain address range.
+
+        See section 2.4.4.7 of SLAU319 (Rev. O) 
+        """
+        raise NotImplementedError
+
+
+    def bsl_change_baud_rate(self):
+        """ Change baud rate.
+
+        See section 2.4.4.8 of SLAU319 (Rev. O) 
+        """
+        raise NotImplementedError
+
+    def bsl_set_memory_offset(self):
+        """ Memory pointer for devices having more than 64KB of memory.
+
+        See section 2.4.4.9 of SLAU319 (Rev. O) 
+        """
+        raise NotImplementedError
+
+    def bsl_load_pc(self):
+        """ Load program counter (register R0)
+
+        See section 2.4.4.10 of SLAU319 (Rev. O) 
+        """
+        raise NotImplementedError
+
+    def bsl_tx_data_block(self, length, address):
+        """ Read access to flash memory, RAM and perpheral modules registers.
+
+        Length and address are ints, but recall ints can be expressed like 0x0001.
+
+        The transmit data block command is used for any read access to the
+        flash memory, RAM, or peripheral module control registers at 0000h to
+        01FFh. It is password protected.
+
+        The 16-bit block start address is defined in AL (low byte) and AH
+        (high byte). The 16-bit block length is defined in LL (low byte) and
+        LH (high byte). Because pure data bytes are limited to a maximum of
+        250, LH is always 0. The checksum bytes CKL (low byte) and CKH (high
+        byte) immediately follow this information.
+
+        Now the BSL responds with the requested data block. After transmitting
+        HDR, dummy CMD, L1 and L2, The BSL sends data bytes D1 through Dn,
+        followed by the checksum bytes CKL (low byte) and CKH (high byte). No
+        acknowledge character is necessary.
+        """
+        assert(length <= 250)
+        # assert(len(address) == 2)
+        import struct
+        data_frame = append_checksum(
+            b'\x80\x14\x04\x04' + struct.pack('<HH', address, length)
+            )
+
+        self.serial.write(data_frame)
+
+        # assert(self.serial.in_waiting == length + 6)
+
+        return self.serial.read(length + 6)
+
+    def bsl_tx_version(self):
+        """ Read BSL version information from target.
+
+        For MSP430F1611 as found on TelosB, expect Chip ID of 0xF16C and BSL
+        version data of 0x0161 (Table 20 SLAU319 Rev. O)
+        """
+
+        data_frame = append_checksum(hexstr_to_bytes('80 1E 04 04 00 00 00 00'))
+        self.serial.write(data_frame)
+
+        self.serial.flushInput()
+        response = self.serial.read(22)
+        
+        assert(response != DATA_NAK)
+        assert(len(response) == 22)
+
+        return response
 
     def test(self):
         data_frame = hexstr_to_bytes('80 14 04 04 00 0F 0E 00 75 E0')
@@ -240,31 +408,14 @@ class TelosB():
 
         print(response)
 
-    def password(self):
-        data_frame = hexstr_to_bytes('80 10 24 24 E0 FF 20 00') + (32 * b'\xFF')
-        print(bytes_to_hexstr(append_checksum(data_frame)))
-        # self.serial.flushInput()
-        self.serial.write(append_checksum(data_frame))
 
-        response = self.serial.read(16)
 
-        print(response)
-
-    def erase(self):
-        data_frame = hexstr_to_bytes('80 18 04 04 00 FF 06 A5')
-        self.serial.write(append_checksum(data_frame))
-
-        # self.serial.flushInput()
-        response = self.serial.read(16)
-
-        print(response)
 
 def append_checksum(data):
-    print(bytes_to_hexstr(data))
-    # WARNING, SWITCH THE BYTES... Appears to be an issue here...
+    """Return data with 16-bit checksum CKL, CKH append to end."""
     CKL, CKH = checksum(data)
 
-    print(bytes_to_hexstr(data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')))
+    # print(bytes_to_hexstr(data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')))
     return data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')
 
 def checksum(data):
@@ -273,9 +424,9 @@ def checksum(data):
     themselves, by XORing words (two successive bytes) and inverting the
     result.
     """
-    checksum_high = ~xor(data[0::2]) & 0xFF
-    checksum_low = ~xor(data[1::2]) & 0xFF
-    return checksum_high, checksum_low
+    checksum_low = ~xor(data[0::2]) & 0xFF
+    checksum_high = ~xor(data[1::2]) & 0xFF
+    return checksum_low, checksum_high
 
 def xor(data):
     """Return the XOR of successive elements ."""
@@ -302,6 +453,10 @@ def hexstr_to_bytes(value):
 def bytes_to_hexstr(value, start='', sep=' '):
     """Return string of hexadecimal numbers separated by spaces from a bytes object."""
     return start + sep.join(["{:02X}".format(byte) for byte in bytes(value)])
+
+def int_to_bytes(value, length=1, signed=False):
+    """Return bytes given integer"""
+    return int(value).to_bytes(length, byteorder='big', signed=signed)
 
 if __name__ == '__main__':
     telos = TelosB('/dev/ttyUSB0')

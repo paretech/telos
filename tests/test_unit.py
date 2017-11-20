@@ -29,10 +29,34 @@ class PTBSL(unittest.TestCase):
 
 	def test_hexstr_to_bytes(self):
 		import ptbsl.bsl
-		self.assertEqual(ptbsl.bsl.hexstr_to_bytes('80 14 04 04 00 0F 0E 00'), b'\x80\x14\x04\x04\x00\x0F\x0E\x00')
+		self.assertEqual(
+			ptbsl.bsl.hexstr_to_bytes('80 14 04 04 00 0F 0E 00'), 
+			b'\x80\x14\x04\x04\x00\x0F\x0E\x00'
+			)
 
 	def test_checksum(self):
 		import ptbsl.bsl
 
-		self.assertEqual(ptbsl.bsl.checksum(b'\x80\x14\x04\x04\x00\x0F\x0E\x00'), (0X75, 0XE0))
-		self.assertEqual(ptbsl.bsl.checksum(ptbsl.bsl.hexstr_to_bytes('80 00 0E 0E F2 13 40 40 00 00 00 00 00 00 02 01 01 01')), (0xC0, 0XA2))
+		self.assertEqual(
+			ptbsl.bsl.checksum(b'\x80\x14\x04\x04\x00\x0F\x0E\x00'), 
+			(0X75, 0XE0)
+			)
+
+		self.assertEqual(
+			ptbsl.bsl.checksum(ptbsl.bsl.hexstr_to_bytes('80 00 0E 0E F2 13 40 40 00 00 00 00 00 00 02 01 01 01')), 
+			(0xC0, 0XA2)
+			)
+
+
+	def test_append_checksum(self):
+		import ptbsl.bsl
+
+		self.assertEqual(
+			ptbsl.bsl.append_checksum(ptbsl.bsl.hexstr_to_bytes('80 1E 04 04 00 00 00 00')),
+			ptbsl.bsl.hexstr_to_bytes('80 1E 04 04 00 00 00 00') + b'\x7b\xE5'
+			)
+
+		self.assertEqual(
+			ptbsl.bsl.append_checksum(ptbsl.bsl.hexstr_to_bytes('80 14 04 04 F0 0F 0E 00')),
+			ptbsl.bsl.hexstr_to_bytes('80 14 04 04 F0 0F 0E 00 85 E0')
+			)
