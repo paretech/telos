@@ -20,10 +20,10 @@ Quick Start
 .. code-block:: console
 
     $ python -m venv venv
-	$ source venv/bin/activate
-	$ pip install -r requirements.txt
-	$ python -m unittest discover -s tests
-	$ python -i -m telos.bsl
+    $ source venv/bin/activate
+    $ pip install -r requirements.txt
+    $ python -m unittest discover -s tests
+    $ python -i -m telos.bsl
 
 Documentation
 -------------
