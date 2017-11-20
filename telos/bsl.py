@@ -375,9 +375,11 @@ class TelosB():
 
         self.serial.write(data_frame)
 
-        # assert(self.serial.in_waiting == length + 6)
+        response = self.serial.read(length + 6)
+        
+        assert(len(response) == length + 6)
 
-        return self.serial.read(length + 6)
+        return response
 
     def bsl_tx_version(self):
         """ Read BSL version information from target.
