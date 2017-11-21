@@ -1,5 +1,7 @@
 import serial
 import time
+import functools
+from struct import pack
 
 SYNC = b'\x80'
 
@@ -154,6 +156,15 @@ class FT232BM(serial.Serial):
             self._update_dtr_state()
 
 
+def sync(func):
+    """ A bsl_sync() must be performed before every BSL command."""
+    @functools.wraps(func)
+    def inner(self, *args, **kwargs):
+        self.bsl_sync()
+        return func(self, *args, **kwargs)
+    return inner
+
+
 class TelosB():
     def __init__(self, port):
         # The UART protocol initially used by the MCU BSL is defined by fixed
@@ -230,6 +241,7 @@ class TelosB():
         data_acknowledge = self.serial.read()
         assert(data_acknowledge == DATA_ACK)
 
+    @sync
     def bsl_rx_data_block(self, address, data):
         """ Write data to the BSL target device.
 
@@ -238,12 +250,27 @@ class TelosB():
         to 01FFh. It is password protected.
         """
 
-        # @TODO: Incomplete implementation
-        raise NotImplementedError
+        # !WARNING: Writing to 0x0000 causes unexpected results.
 
+        length = len(data)
+        assert(address%2 != 1)
+        assert(length <= 250)
         assert(length%2 != 1)
-        assert(int(address) < 255)
+        
+        
+        data_frame = append_checksum(b'\x80\x12' + pack('<BBHH', length+4, length+4, address, length) + data)
+        self.serial.flushInput()
+        self.serial.write(data_frame)
 
+        response = self.serial.read(1)
+        assert(response != DATA_NAK)
+        assert(response == DATA_ACK)
+
+        # @TODO: Check for incorrectly written location address+3 into the
+        # error address buffer in the RAM at address 0200h (021Eh for F14x
+        # devices). See Section 2.4.4.2 for additional information.
+
+    @sync
     def bsl_rx_password(self, password=(32 * b'\xFF')):
         """ Unlock the password-protected BSL commands.
 
@@ -267,13 +294,15 @@ class TelosB():
         """
         assert(len(password) == 32) 
         data_frame = hexstr_to_bytes('80 10 24 24 00 00 00 00') + password
+        self.serial.flushInput()
         self.serial.write(append_checksum(data_frame))
 
         self.serial.flushInput()
         response = self.serial.read(1)
         assert(response != DATA_NAK)
         assert(response == DATA_ACK)
-
+    
+    @sync
     def bsl_mass_erase(self):
         """ Erase the entire flash memory area.
 
@@ -296,13 +325,14 @@ class TelosB():
         """
 
         data_frame = append_checksum(hexstr_to_bytes('80 18 04 04 00 FF 06 A5'))
-        self.serial.write()
+        self.serial.write(data_frame)
 
         self.serial.flushInput()
         response = self.serial.read(1)
         assert(response != DATA_NAK)
         assert(response == DATA_ACK)
 
+    @sync
     def bsl_erase_segment(self):
         """ Erases specific flash memory segments.
 
@@ -310,6 +340,7 @@ class TelosB():
         """
         raise NotImplementedError
 
+    @sync
     def bsl_erase_main(self):
         """ Erases specific flash memory sections..
 
@@ -317,6 +348,7 @@ class TelosB():
         """
         raise NotImplementedError
 
+    @sync
     def bsl_erase_check(self):
         """ Verify erasure of flash memory within a certain address range.
 
@@ -324,7 +356,7 @@ class TelosB():
         """
         raise NotImplementedError
 
-
+    @sync
     def bsl_change_baud_rate(self):
         """ Change baud rate.
 
@@ -332,6 +364,7 @@ class TelosB():
         """
         raise NotImplementedError
 
+    @sync
     def bsl_set_memory_offset(self):
         """ Memory pointer for devices having more than 64KB of memory.
 
@@ -339,6 +372,7 @@ class TelosB():
         """
         raise NotImplementedError
 
+    @sync
     def bsl_load_pc(self):
         """ Load program counter (register R0)
 
@@ -346,6 +380,7 @@ class TelosB():
         """
         raise NotImplementedError
 
+    @sync
     def bsl_tx_data_block(self, length, address):
         """ Read access to flash memory, RAM and perpheral modules registers.
 
@@ -367,12 +402,11 @@ class TelosB():
         acknowledge character is necessary.
         """
         assert(length <= 250)
-        # assert(len(address) == 2)
-        import struct
         data_frame = append_checksum(
-            b'\x80\x14\x04\x04' + struct.pack('<HH', address, length)
+            b'\x80\x14\x04\x04' + pack('<HH', address, length)
             )
 
+        self.serial.flushInput()
         self.serial.write(data_frame)
 
         response = self.serial.read(length + 6)
@@ -381,11 +415,12 @@ class TelosB():
 
         return response
 
+    @sync
     def bsl_tx_version(self):
         """ Read BSL version information from target.
 
         For MSP430F1611 as found on TelosB, expect Chip ID of 0xF16C and BSL
-        version data of 0x0161 (Table 20 SLAU319 Rev. O)
+        version data of 0x0161 (Table 20 SLAU319 Rev. O). See also Section 2.9.1.
         """
 
         data_frame = append_checksum(hexstr_to_bytes('80 1E 04 04 00 00 00 00'))
@@ -399,18 +434,13 @@ class TelosB():
 
         return response
 
-    def test(self):
-        data_frame = hexstr_to_bytes('80 14 04 04 00 0F 0E 00 75 E0')
-        print(append_checksum(data_frame))
-        # self.bsl_sync()
-        self.serial.write(append_checksum(data_frame))
+    @sync
+    def bsl_upgrade(self):
+        """ Load program counter (register R0)
 
-        # self.serial.flushInput()
-        response = self.serial.read(16)
-
-        print(response)
-
-
+        See section 2.5 of SLAU319 (Rev. O) 
+        """
+        raise NotImplementedError
 
 
 def append_checksum(data):
