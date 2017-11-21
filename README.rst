@@ -35,13 +35,15 @@ Resources
 #. `Telos Mote [detailed description and schematics] <http://www2.ece.ohio-state.edu/~bibyk/ee582/telosMote.pdf>`_
 #. `Texas Instruments MSP430F1611 [product page] <http://www.ti.com/product/MSP430F1611/description>`_
 #. `MSP430F161x Data Sheet <http://www.ti.com/lit/ds/symlink/msp430f1611.pdf>`_
-#. `MSP430x1xx Family User`s Guide <http://www.ti.com/lit/ug/slau049f/slau049f.pdf>`_
 #. `CC2420 [product page] <http://www.ti.com/product/CC2420>`_
 #. `CC2420 Data Sheet <http://www.ti.com/lit/ds/symlink/cc2420.pdf>`_
 #. `Analog Devices ADG715 [product page] <http://www.analog.com/en/products/switches-multiplexers/analog-switches-multiplexers/adg715.html>`_
 #. `ADG715 Data Sheet <http://www.analog.com/media/en/technical-documentation/data-sheets/ADG714_715.pdf>`_
+#. `MSP430x1xx Family User`s Guide <http://www.ti.com/lit/ug/slau049f/slau049f.pdf>`_
 #. `MSP430 Assembly Language Tools v17.9.0.STS <http://www.ti.com/lit/ug/slau131q/slau131q.pdf>`_
+#. `MSP430 GCC User's Guide <http://www.ti.com/lit/ug/slau646b/slau646b.pdf>`_
 #. `MSP430 Embedded Application Binary Interface <http://www.ti.com/lit/an/slaa534/slaa534.pdf>`_
+#. `Creating a Second-Level Bootloader for FLASH Bootloading on TMS320C6000 Platform With Code Composer Studio <http://www.ti.com/lit/an/spra999a/spra999a.pdf>`_
 #. `IEEE 802.15.4 ™ and Zig Bee ™ Hardware Platform using MSP430F1612 <http://www.ti.com/lit/an/slaa264/slaa264.pdf>`_
 #. `IEEE 802.15.4/ZigBee Security Research Toolkit <https://github.com/riverloopsec/killerbee>`_
 #. `GoodFET by Travis Goodspeed <http://goodfet.sourceforge.net/>`_
