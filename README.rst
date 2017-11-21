@@ -34,16 +34,20 @@ Resources
 #. `Memsic TelosB Datasheet <http://www.memsic.com/userfiles/files/Datasheets/WSN/telosb_datasheet.pdf>`_
 #. `Telos Mote [detailed description and schematics] <http://www2.ece.ohio-state.edu/~bibyk/ee582/telosMote.pdf>`_
 #. `Texas Instruments MSP430F1611 [product page] <http://www.ti.com/product/MSP430F1611/description>`_
-#. `MSP430 Embedded Application Binary Interface <http://www.ti.com/lit/an/slaa534/slaa534.pdf>`_
-#. `Analog Devices ADG715 [product page] <http://www.analog.com/en/products/switches-multiplexers/analog-switches-multiplexers/adg715.html>`_
-#. `ADG715 Data Sheet <http://www.analog.com/media/en/technical-documentation/data-sheets/ADG714_715.pdf>`_
 #. `MSP430F161x Data Sheet <http://www.ti.com/lit/ds/symlink/msp430f1611.pdf>`_
 #. `MSP430x1xx Family User`s Guide <http://www.ti.com/lit/ug/slau049f/slau049f.pdf>`_
-#. `IEEE 802.15.4 ™ and Zig B ee ™ Hardware Platform using MSP430F1612 <http://www.ti.com/lit/an/slaa264/slaa264.pdf>`_
+#. `CC2420 [product page] <http://www.ti.com/product/CC2420>`_
+#. `CC2420 Data Sheet <http://www.ti.com/lit/ds/symlink/cc2420.pdf>`_
+#. `Analog Devices ADG715 [product page] <http://www.analog.com/en/products/switches-multiplexers/analog-switches-multiplexers/adg715.html>`_
+#. `ADG715 Data Sheet <http://www.analog.com/media/en/technical-documentation/data-sheets/ADG714_715.pdf>`_
 #. `MSP430 Assembly Language Tools v17.9.0.STS <http://www.ti.com/lit/ug/slau131q/slau131q.pdf>`_
-#. `GoodFET on the TelosB, TMote Sky <http://travisgoodspeed.blogspot.com/2011/03/goodfet-on-telosb-tmote-sky.html>`_
-#. `GoodFET by Travis Goodspeed <http://goodfet.sourceforge.net/>`_
+#. `MSP430 Embedded Application Binary Interface <http://www.ti.com/lit/an/slaa534/slaa534.pdf>`_
+#. `IEEE 802.15.4 ™ and Zig Bee ™ Hardware Platform using MSP430F1612 <http://www.ti.com/lit/an/slaa264/slaa264.pdf>`_
 #. `IEEE 802.15.4/ZigBee Security Research Toolkit <https://github.com/riverloopsec/killerbee>`_
+#. `GoodFET by Travis Goodspeed <http://goodfet.sourceforge.net/>`_
+#. `GoodFET on the TelosB, TMote Sky <http://travisgoodspeed.blogspot.com/2011/03/goodfet-on-telosb-tmote-sky.html>`_
+#. `RIOT - The friendly OS for IoT <https://github.com/RIOT-OS/RIOT>`_
+#. `TinyOS (an OS for embedded, wireless devices) <https://github.com/tinyos/tinyos-main>`_
 
 
 Contributing
