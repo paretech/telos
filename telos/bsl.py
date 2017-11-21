@@ -442,6 +442,20 @@ class TelosB():
         """
         raise NotImplementedError
 
+    def bsl_program(self, file, block_size=250):
+        from intelhex import IntelHex16bit
+
+        ihex = IntelHex16bit(file)
+
+        for start, stop in ihex.segments():
+            for address in range(start, stop, block_size):
+                if address + block_size < stop:
+                    data = ihex.tobinstr(start=address, size=block_size)
+                else:
+                    data = ihex.tobinstr(start=address, size=(stop-address))
+                self.bsl_rx_data_block(address, data)
+
+
 
 def append_checksum(data):
     """Return data with 16-bit checksum CKL, CKH append to end."""
@@ -490,5 +504,10 @@ def int_to_bytes(value, length=1, signed=False):
     """Return bytes given integer"""
     return int(value).to_bytes(length, byteorder='big', signed=signed)
 
+
+
+
 if __name__ == '__main__':
     telos = TelosB('/dev/ttyUSB0')
+
+

@@ -13,7 +13,7 @@ Why?
 Features
 --------
 - Written for Python 3.6
-- Minimal dependencies (`pyserial <https://pypi.python.org/pypi/pyserial>`_)
+- Minimal dependencies (`pyserial <https://pypi.python.org/pypi/pyserial>`_, `IntelHex <https://pypi.python.org/pypi/IntelHex>`_)
 
 
 Quick Start
@@ -23,9 +23,13 @@ Quick Start
 
     $ python -m venv venv
     $ source venv/bin/activate
-    $ pip install -r requirements.txt
+    $ pip install --rrequirement requirements.txt
     $ python -m unittest discover -s tests
     $ python -i -m telos.bsl
+    >>> telos.bsl_mass_erase()
+    >>> telos.bsl_rx_password()
+    >>> telos.bsl_program('./examples/blink/blink.hex')
+
 
 Resources
 ---------
@@ -50,6 +54,7 @@ Resources
 #. `GoodFET on the TelosB, TMote Sky <http://travisgoodspeed.blogspot.com/2011/03/goodfet-on-telosb-tmote-sky.html>`_
 #. `RIOT - The friendly OS for IoT <https://github.com/RIOT-OS/RIOT>`_
 #. `TinyOS (an OS for embedded, wireless devices) <https://github.com/tinyos/tinyos-main>`_
+#. `Intel Hex <https://en.wikipedia.org/wiki/Intel_HEX>`_
 
 
 Contributing

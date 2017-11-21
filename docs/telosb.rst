@@ -10,67 +10,67 @@ Install binutils-msp4340, gcc-msp430, msp430-libc, and msp430mcu from AUR (abdul
 
 ..code-block:: sh
 
-	pacman -S mspgcc
-	pacman -S binutils-msp430
-	pacman -U binutils-msp430-2.21.1a-1-x86_64.pkg.tar.xz
-	pacman -U gcc-msp430-4.6.3-1-x86_64.pkg.tar.xz
-	pacman -U msp430-libc-20120224-1-x86_64.pkg.tar.xz
-	pacman -U msp430mcu-20120406-1-any.pkg.tar.xz
+    pacman -S mspgcc
+    pacman -S binutils-msp430
+    pacman -U binutils-msp430-2.21.1a-1-x86_64.pkg.tar.xz
+    pacman -U gcc-msp430-4.6.3-1-x86_64.pkg.tar.xz
+    pacman -U msp430-libc-20120224-1-x86_64.pkg.tar.xz
+    pacman -U msp430mcu-20120406-1-any.pkg.tar.xz
 
-	clone git@github.com:travisgoodspeed/goodfet.git
+    clone git@github.com:travisgoodspeed/goodfet.git
 
-	cd goodfet/firmware
-	export board=telosb
-	make clean all
+    cd goodfet/firmware
+    export board=telosb
+    make clean all
 
-	../client/goodfet.bsl --telosb -c /dev/ttyUSB0 -r -e -I -p goodfet.hex
+    ../client/goodfet.bsl --telosb -c /dev/ttyUSB0 -r -e -I -p goodfet.hex
 
 If all went well well there should now be a `goodfet.hex` file. Bad news is the goodfet bootstrap loader (BSL) responds with BSL Exception "NAK received (wrong password?)". For now that's okay as our good friend @rho in Texas let us know that the RIOT-OS bootloader appears to work just fine.
 
 ..code-block:: sh
 
-	git clone git@github.com:RIOT-OS/RIOT.git
+    git clone git@github.com:RIOT-OS/RIOT.git
 
-	./RIOT/dist/tools/goodfet/goodfet.bsl --telosb -c /dev/ttyUSB0 -r -e -I -p goodfet/firmware/goodfet.hex
-	MSP430 Bootstrap Loader Version: 1.39-goodfet-8
-	Mass Erase...
-	Transmit default password ...
-	Invoking BSL...
-	Transmit default password ...
-	Current bootstrap loader version: 1.61 (Device ID: f16c)
-	Changing baudrate to 38400 ...
-	Program ...
-	9170 bytes programmed.
-	Reset device ...
+    ./RIOT/dist/tools/goodfet/goodfet.bsl --telosb -c /dev/ttyUSB0 -r -e -I -p goodfet/firmware/goodfet.hex
+    MSP430 Bootstrap Loader Version: 1.39-goodfet-8
+    Mass Erase...
+    Transmit default password ...
+    Invoking BSL...
+    Transmit default password ...
+    Current bootstrap loader version: 1.61 (Device ID: f16c)
+    Changing baudrate to 38400 ...
+    Program ...
+    9170 bytes programmed.
+    Reset device ...
 
 Sweet!
 
 ..code-block:: sh
 
-	# pacman -S python2-virtualenve
+    # pacman -S python2-virtualenve
 
-	$ cd goodfet
-	$ virtualenv2 venv
-	$ source venv/bin/activate
-	$ pip install pyserial
+    $ cd goodfet
+    $ virtualenv2 venv
+    $ source venv/bin/activate
+    $ pip install pyserial
 
-	$ usermod -a -G uucp $username
+    $ usermod -a -G uucp $username
 
-	$ /dev/ttyUSB0
-	Found   CC2420
-	Freq:   2405.000000 MHz
-	Status:
-	(venv) [paretech@osprey goodfet]$ ./client/goodfet.spiflash info
-	Ident as MISSING M25P80
-	Manufacturer: ff MISSING
-	Type: ff
-	Capacity: ff (1048576 bytes)
+    $ /dev/ttyUSB0
+    Found   CC2420
+    Freq:   2405.000000 MHz
+    Status:
+    (venv) [paretech@osprey goodfet]$ ./client/goodfet.spiflash info
+    Ident as MISSING M25P80
+    Manufacturer: ff MISSING
+    Type: ff
+    Capacity: ff (1048576 bytes)
 
-	$ ./client/goodfet.ccspi info
-	ON: /dev/ttyUSB0
-	Found   CC2420
-	Freq:   2405.000000 MHz
-	Status:
+    $ ./client/goodfet.ccspi info
+    ON: /dev/ttyUSB0
+    Found   CC2420
+    Freq:   2405.000000 MHz
+    Status:
 
 So what does this all mean? Well there is work to be done on the BSL loader that comes with goodfet but that from RIOT is immediately useful. Also, the goodfet firmware was successfully built, the goodfet client executes and is able to query the telosb hardware. Note too shabby for a few minutes of work! Some notes were even made in the process! Good job...
 
@@ -121,7 +121,7 @@ The 32-byte password is always located at addresses FFE0h to FFFFh. If you are a
 
 If you have the ELF file the interrupt vector can be found by dissassembly `msp430-objdump -D $if` and inspecting for `__ivtbl_16`. 
 
-The password can also be relatively easily obtained from the hex file that programmed the device.  
+The password can also be easily read directly from the Intel hex file. Find the 32-byte data record 0xFFE0-0xFFFF.  
 
 For example, a goodfet firmware recently built and loaded had password `telos.bsl_rx_password(15*b'\x22\x41' + b'\x00\x40')`.
 
@@ -131,6 +131,17 @@ Interrupt Vector
 
 The interrupt vectors and the power-up starting address are located in the address range 0FFFFh to 0FFE0h. The vector contains the 16-bit address of the appropriate interrupt-handler instruction sequence.
 
+
+Building Examples
+=================
+
+Blink
+-----
+
+..code-block:: sh
+
+    $ msp430-gcc -mmcu=msp430f1611 -o blink.elf blink.c
+    $ msp430-objcopy -O ihex blink.elf blink.hex
 
 SLAU131Q
 ========
