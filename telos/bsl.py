@@ -1,7 +1,9 @@
-import serial
-import time
 import functools
+import time
 from struct import pack
+
+import serial
+from intelhex import IntelHex16bit
 
 SYNC = b'\x80'
 
@@ -12,6 +14,8 @@ DATA_ACK = b'\x90'
 # Incorrectly received data frames, unsuccessful operations, and commands that
 # are locked or not defined are confirmed with a DATA_NAK = A0h.
 DATA_NAK = b'\xA0'
+
+MAX_BLOCK_LENGTH = 250
 
 class Driver():
     # David Beazley style... https://www.youtube.com/watch?v=5nXmq1PsoJ0
@@ -254,7 +258,7 @@ class TelosB():
 
         length = len(data)
         assert(address%2 != 1)
-        assert(length <= 250)
+        assert(length <= MAX_BLOCK_LENGTH)
         assert(length%2 != 1)
         
         
@@ -401,7 +405,7 @@ class TelosB():
         followed by the checksum bytes CKL (low byte) and CKH (high byte). No
         acknowledge character is necessary.
         """
-        assert(length <= 250)
+        assert(length <= MAX_BLOCK_LENGTH)
         data_frame = append_checksum(
             b'\x80\x14\x04\x04' + pack('<HH', address, length)
             )
@@ -434,7 +438,6 @@ class TelosB():
 
         return response
 
-    @sync
     def bsl_upgrade(self):
         """ Load program counter (register R0)
 
@@ -442,9 +445,8 @@ class TelosB():
         """
         raise NotImplementedError
 
-    def bsl_program(self, file, block_size=250):
-        from intelhex import IntelHex16bit
-
+    def bsl_program(self, file, block_size=MAX_BLOCK_LENGTH):
+        """ Load an Intel Hex file into target flash. """
         ihex = IntelHex16bit(file)
 
         for start, stop in ihex.segments():
@@ -455,7 +457,7 @@ class TelosB():
                     data = ihex.tobinstr(start=address, size=(stop-address))
                 self.bsl_rx_data_block(address, data)
 
-
+    # def bsl_dump(self):
 
 def append_checksum(data):
     """Return data with 16-bit checksum CKL, CKH append to end."""
@@ -483,14 +485,6 @@ def xor(data):
     # See https://docs.python.org/3/library/stdtypes.html#bytes-objects if you
     # need a friendly reminder on how byte objects behave.
     return xor_sum
-
-def goodfet_checksum(data):
-    """Calculates a checksum of "data"."""
-    checksum = 0
-    length = len(data)
-    for i in range(length/2):
-        checksum = checksum ^ ((data[i*2]) | ((data[i*2+1]) << 8))    #xor-ing
-    return 0xffff & (checksum ^ 0xffff)         #inverting
 
 def hexstr_to_bytes(value):
     """Return bytes object and filter out formatting characters from a string of hexadecimal numbers."""
