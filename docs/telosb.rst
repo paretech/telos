@@ -121,7 +121,7 @@ The 32-byte password is always located at addresses FFE0h to FFFFh. If you are a
 
 If you have the ELF file the interrupt vector can be found by dissassembly `msp430-objdump -D $if` and inspecting for `__ivtbl_16`. 
 
-The password can also be easily read directly from the Intel hex file. Find the 32-byte data record 0xFFE0-0xFFFF.  
+The password can also be easily read directly from the Intel hex file. Find the 32-byte data record 0xFFE0-0xFFFF. For example, if using the Python IntexHex library, `ihex.tobinstr(start=0xffe0, size=32)`.
 
 For example, a goodfet firmware recently built and loaded had password `telos.bsl_rx_password(15*b'\x22\x41' + b'\x00\x40')`.
 
@@ -130,6 +130,19 @@ Interrupt Vector
 ----------------
 
 The interrupt vectors and the power-up starting address are located in the address range 0FFFFh to 0FFE0h. The vector contains the 16-bit address of the appropriate interrupt-handler instruction sequence.
+
+
+Toolchain
+=========
+
+Previously been using AUR packages for https://sourceforge.net/projects/mspgcc/. This project indicates that it is obsolete and links visitors to  http://www.ti.com/tool/msp430-gcc-opensource.
+
+TI now reports that this package may be unmaintained.
+
+AUR packages point to https://aur.archlinux.org/packages/mspgcc-ti/ for latest TI post at http://software-dl.ti.com/msp430/msp430_public_sw/mcu/msp430/MSPGCC/latest/index_FDS.html. Need to enable multilib to use this package due to lib32 dependencies. https://wiki.archlinux.org/index.php/multilib
+
+Updating MSP GCC is left as a future activity as the packages provided by ABDULLATIF are at least working well enough to compile goodfet and some simple examples.
+
 
 
 Building Examples
@@ -142,6 +155,13 @@ Blink
 
     $ msp430-gcc -mmcu=msp430f1611 -o blink.elf blink.c
     $ msp430-objcopy -O ihex blink.elf blink.hex
+
+Third Party Examples and Tutorials
+----------------------------------
+
+#. http://processors.wiki.ti.com/index.php/MSP430_LaunchPad_Tutorials
+#. http://processors.wiki.ti.com/index.php/MSP430_LaunchPad_LED_Timer
+#. 
 
 SLAU131Q
 ========

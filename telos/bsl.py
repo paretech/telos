@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import functools
 import time
 from struct import pack
@@ -161,7 +163,7 @@ class FT232BM(serial.Serial):
 
 
 def sync(func):
-    """ A bsl_sync() must be performed before every BSL command."""
+    """ Decorator A bsl_sync() must be performed before every BSL command."""
     @functools.wraps(func)
     def inner(self, *args, **kwargs):
         self.bsl_sync()
@@ -169,62 +171,9 @@ def sync(func):
     return inner
 
 
-class TelosB():
-    def __init__(self, port):
-        # The UART protocol initially used by the MCU BSL is defined by fixed
-        # 9600 baud in half-duplex mode (one sender at a time), 1-start bit,
-        # 8-data bits (LSB first), an even parity bit, 1 stop bit. Handshake
-        # is performed by an acknowledge character 0x90. Minimum time delay
-        # before sending new characters after characters have been received
-        # from the MSP430 BSL is 1.2 ms. Applying baud rates other than 9600
-        # baud at initialization results in communication problems or violates
-        # the flash memory write timing specification. The flash memory may be
-        # extensively stressed or may react with unreliable program or erase
-        # operations.
-        self.serial = FT232BM(
-            port=port,
-            baudrate = 9600,
-            bytesize = 8,
-            parity = serial.PARITY_EVEN,
-            stopbits = serial.STOPBITS_ONE,
-            timeout = 5,
-            write_timeout = 5,
-            invert_rtsdtr=True,
-            )
-
-        self.switch = ADG715(self.serial)
-
-        self.bsl_start()
-
-    # @TODO: Context manager? Start switch serial, do something, stop switch serial.
-    def bsl_start(self):
-        # The TelosB ADG715 digital switch is controlled via an I2C compatible
-        # serial bus.
-        self.switch.serial_start()
-        
-        # The BSL program execution starts whenever the TCK pin has received a
-        # minimum of two negative transitions and TCK is low while RST/NMI
-        # rises from low to high (BSL entry method, see Figure 3). This level
-        # transition triggering improves BSL start-up reliability.
-        # 
-        # The TelosB RESET (RST/NMI) is actively pulled high, setting bit-1
-        # closes switch 1 and pulls the signal to low. Likewise, TCK is
-        # actively pulled high, setting bit-2 closes switch 2 and pulls the
-        # signal low.
-        self.switch.set_switches(0b0000_0001)
-        self.switch.set_switches(0b0000_0011)
-        self.switch.set_switches(0b0000_0001)
-        self.switch.set_switches(0b0000_0011)
-        self.switch.set_switches(0b0000_0010)
-        self.switch.set_switches(0b0000_0000)
-
-        # When all data bits have been read or written, a STOP condition is
-        # established by the master. 
-        self.switch.serial_stop()
-
-        # If control over the MCU UART protocol is lost, either by line faults or
-        # by violating the data frame conventions, the only way to recover is
-        # to rerun the BSL entry sequence to initiate another BSL session.
+class msp430():
+    def __init__(self, serial):
+        self.serial = serial
 
     def bsl_sync(self):
         """ Synchronize BSL internal parameters.
@@ -445,9 +394,50 @@ class TelosB():
         """
         raise NotImplementedError
 
-    def bsl_program(self, file, block_size=MAX_BLOCK_LENGTH):
+
+class TelosB():
+    def __init__(self, port):
+        # The UART protocol initially used by the MCU BSL is defined by fixed
+        # 9600 baud in half-duplex mode (one sender at a time), 1-start bit,
+        # 8-data bits (LSB first), an even parity bit, 1 stop bit. Handshake
+        # is performed by an acknowledge character 0x90. Minimum time delay
+        # before sending new characters after characters have been received
+        # from the MSP430 BSL is 1.2 ms. Applying baud rates other than 9600
+        # baud at initialization results in communication problems or violates
+        # the flash memory write timing specification. The flash memory may be
+        # extensively stressed or may react with unreliable program or erase
+        # operations.
+        self.serial = FT232BM(
+            port=port,
+            baudrate = 9600,
+            bytesize = 8,
+            parity = serial.PARITY_EVEN,
+            stopbits = serial.STOPBITS_ONE,
+            timeout = 5,
+            write_timeout = 5,
+            invert_rtsdtr=True,
+            )
+
+        assert(self.serial.readable())
+        assert(self.serial.writable())
+
+        self.switch = ADG715(self.serial)
+        self.mcu = msp430(self.serial)
+
+        self.password = (32 * b'\xFF')
+
+        self.bsl_start()
+
+    def erase(self):
+        self.mcu.bsl_mass_erase()
+        self.password = 32*b'\xFF'
+
+    def program(self, file=None, block_size=MAX_BLOCK_LENGTH):
         """ Load an Intel Hex file into target flash. """
-        ihex = IntelHex16bit(file)
+        self.mcu.bsl_rx_password(self.password)
+
+        ihex = IntelHex16bit()
+        ihex.fromfile(file, format='hex')
 
         for start, stop in ihex.segments():
             for address in range(start, stop, block_size):
@@ -455,9 +445,47 @@ class TelosB():
                     data = ihex.tobinstr(start=address, size=block_size)
                 else:
                     data = ihex.tobinstr(start=address, size=(stop-address))
-                self.bsl_rx_data_block(address, data)
+                self.mcu.bsl_rx_data_block(address, data)
 
-    # def bsl_dump(self):
+        self.password = ihex.tobinstr(start=0xffe0, size=32)
+
+    def recover_password(self, file=None):
+        """ Recover password from previous program. """
+
+        ihex = IntelHex16bit()
+        ihex.fromfile(file, format='hex')
+
+        self.password = ihex.tobinstr(start=0xffe0, size=32)
+
+    def bsl_start(self):
+        # The TelosB ADG715 digital switch is controlled via an I2C compatible
+        # serial bus.
+        self.switch.serial_start()
+        
+        # The BSL program execution starts whenever the TCK pin has received a
+        # minimum of two negative transitions and TCK is low while RST/NMI
+        # rises from low to high (BSL entry method, see Figure 3). This level
+        # transition triggering improves BSL start-up reliability.
+        # 
+        # The TelosB RESET (RST/NMI) is actively pulled high, setting bit-1
+        # closes switch 1 and pulls the signal to low. Likewise, TCK is
+        # actively pulled high, setting bit-2 closes switch 2 and pulls the
+        # signal low.
+        self.switch.set_switches(0b0000_0001)
+        self.switch.set_switches(0b0000_0011)
+        self.switch.set_switches(0b0000_0001)
+        self.switch.set_switches(0b0000_0011)
+        self.switch.set_switches(0b0000_0010)
+        self.switch.set_switches(0b0000_0000)
+
+        # When all data bits have been read or written, a STOP condition is
+        # established by the master. 
+        self.switch.serial_stop()
+
+        # If control over the MCU UART protocol is lost, either by line faults or
+        # by violating the data frame conventions, the only way to recover is
+        # to rerun the BSL entry sequence to initiate another BSL session.
+
 
 def append_checksum(data):
     """Return data with 16-bit checksum CKL, CKH append to end."""
@@ -465,6 +493,7 @@ def append_checksum(data):
 
     # print(bytes_to_hexstr(data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')))
     return data + int(CKL).to_bytes(1, 'big') + int(CKH).to_bytes(1, 'big')
+
 
 def checksum(data):
     """Return the 16-bit (2-byte) checksum is calculated over all received or
@@ -476,6 +505,7 @@ def checksum(data):
     checksum_high = ~xor(data[1::2]) & 0xFF
     return checksum_low, checksum_high
 
+
 def xor(data):
     """Return the XOR of successive elements ."""
     xor_sum = 0
@@ -486,22 +516,70 @@ def xor(data):
     # need a friendly reminder on how byte objects behave.
     return xor_sum
 
+
 def hexstr_to_bytes(value):
     """Return bytes object and filter out formatting characters from a string of hexadecimal numbers."""
     return bytes.fromhex(''.join(filter(str.isalnum, value)))
 
+
 def bytes_to_hexstr(value, start='', sep=' '):
     """Return string of hexadecimal numbers separated by spaces from a bytes object."""
     return start + sep.join(["{:02X}".format(byte) for byte in bytes(value)])
+
 
 def int_to_bytes(value, length=1, signed=False):
     """Return bytes given integer"""
     return int(value).to_bytes(length, byteorder='big', signed=signed)
 
 
+def cli_args():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='A bootstrap loader for the TelosB.')
+
+    parser.add_argument(
+        'port', 
+        help='Communication (COM) port.'
+        )
+
+    parser.add_argument(
+        '-e', '--erase',
+        help='Erase flash memory.',
+        action='store_true',
+        )
+
+    parser.add_argument(
+        '-r', '--recover-password',
+        help='Recover password from previously used Intel hex file.'
+        )
+
+    parser.add_argument(
+        '-p', '--program',
+        help='Load intel hex file.'
+        )
+
+    args = parser.parse_args()
+
+    return args
+
+
+def command_line_interface():
+    args = cli_args()
+    telos = TelosB(args.port)
+
+    if args.erase:
+        telos.erase()
+
+    if args.recover_password:
+        telos.recover_password(args.recover_password)
+
+    if args.program:
+        telos.program(args.program)
+
+    return telos
 
 
 if __name__ == '__main__':
-    telos = TelosB('/dev/ttyUSB0')
+    telos = command_line_interface()
 
 
