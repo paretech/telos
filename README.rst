@@ -23,12 +23,10 @@ Quick Start
 
     $ python -m venv venv
     $ source venv/bin/activate
-    $ pip install --rrequirement requirements.txt
+    $ pip install --requirement requirements.txt
     $ python -m unittest discover -s tests
-    $ python -i -m telos.bsl
-    >>> telos.bsl_mass_erase()
-    >>> telos.bsl_rx_password()
-    >>> telos.bsl_program('./examples/blink/blink.hex')
+    $ python -m telos.bsl -h    
+    $ python -m telos.bsl /dev/ttyUSB0 --erase --program examples/blink/blink.hex
 
 
 Resources
